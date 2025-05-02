@@ -1,0 +1,3 @@
+# Create a new React app
+npx create-react-app financial-forecast
+cd financial-forecast
