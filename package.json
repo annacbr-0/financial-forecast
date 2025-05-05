@@ -2,7 +2,7 @@
   "name": "financial-forecast",
     "version": "0.1.0",
     "private": true,
-    "homepage": "https://YOUR_USERNAME.github.io/YOUR_REPO_NAME",
+    "homepage": "https://annacbr-0.github.io/financial-forecast",
     "dependencies": {
       "react": "^18.2.0",
       "react-dom": "^18.2.0",
