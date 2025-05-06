@@ -1,429 +1,426 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, BarChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Plus, Minus, Save } from 'lucide-react';
+import React, { useState } from 'react';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// Define color palette
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
-
-export default function FreelancerCostCalculator() {
-  // State for project data
-  const [projectData, setProjectData] = useState({
-    projectName: 'New Project',
-    clientBudget: 10000,
-    expectedDuration: 2, // months
-    internalCosts: 2000,
-    overheadPercentage: 20
-  });
-
-  // State for freelancers
-  const [freelancers, setFreelancers] = useState([
-    { id: 1, name: 'Designer', hourlyRate: 50, hoursPerWeek: 20, weeks: 4 },
-    { id: 2, name: 'Developer', hourlyRate: 65, hoursPerWeek: 15, weeks: 6 }
+export default function FinancialModel() {
+  // Initial state with sample data
+  const [projects, setProjects] = useState([
+    { id: 1, name: "Website Redesign", revenue: 12000, timeline: 2 },
+    { id: 2, name: "Marketing Campaign", revenue: 8500, timeline: 3 },
+    { id: 3, name: "App Development", revenue: 25000, timeline: 4 }
   ]);
+  
+  const [freelancers, setFreelancers] = useState([
+    { id: 1, name: "Designer", hourlyRate: 75, hoursPerWeek: 20 },
+    { id: 2, name: "Developer", hourlyRate: 90, hoursPerWeek: 30 },
+    { id: 3, name: "Copywriter", hourlyRate: 60, hoursPerWeek: 15 }
+  ]);
+  
+  const [projectAssignments, setProjectAssignments] = useState([
+    { projectId: 1, freelancerId: 1, weeksAssigned: 2 },
+    { projectId: 1, freelancerId: 3, weeksAssigned: 1 },
+    { projectId: 2, freelancerId: 1, weeksAssigned: 2 },
+    { projectId: 2, freelancerId: 3, weeksAssigned: 3 },
+    { projectId: 3, freelancerId: 1, weeksAssigned: 2 },
+    { projectId: 3, freelancerId: 2, weeksAssigned: 4 }
+  ]);
+  
+  const [monthlyOverhead, setMonthlyOverhead] = useState(5000);
+  const [months, setMonths] = useState(6);
+  
+  // Form state
+  const [newProject, setNewProject] = useState({ name: '', revenue: '', timeline: '' });
+  const [newFreelancer, setNewFreelancer] = useState({ name: '', hourlyRate: '', hoursPerWeek: '' });
+  const [newAssignment, setNewAssignment] = useState({ projectId: '', freelancerId: '', weeksAssigned: '' });
 
-  // State for chart type
-  const [chartType, setChartType] = useState('pie');
+  // Handle input changes
+  const handleProjectChange = (e) => {
+    const { name, value } = e.target;
+    setNewProject(prev => ({ ...prev, [name]: name === 'name' ? value : Number(value) }));
+  };
+  
+  const handleFreelancerChange = (e) => {
+    const { name, value } = e.target;
+    setNewFreelancer(prev => ({ ...prev, [name]: name === 'name' ? value : Number(value) }));
+  };
+  
+  const handleAssignmentChange = (e) => {
+    const { name, value } = e.target;
+    setNewAssignment(prev => ({ ...prev, [name]: Number(value) }));
+  };
+  
+  // Add new project
+  const addProject = () => {
+    if (newProject.name && newProject.revenue && newProject.timeline) {
+      const newId = projects.length > 0 ? Math.max(...projects.map(p => p.id)) + 1 : 1;
+      setProjects([...projects, { ...newProject, id: newId }]);
+      setNewProject({ name: '', revenue: '', timeline: '' });
+    }
+  };
+  
+  // Add new freelancer
+  const addFreelancer = () => {
+    if (newFreelancer.name && newFreelancer.hourlyRate && newFreelancer.hoursPerWeek) {
+      const newId = freelancers.length > 0 ? Math.max(...freelancers.map(f => f.id)) + 1 : 1;
+      setFreelancers([...freelancers, { ...newFreelancer, id: newId }]);
+      setNewFreelancer({ name: '', hourlyRate: '', hoursPerWeek: '' });
+    }
+  };
+  
+  // Add new assignment
+  const addAssignment = () => {
+    if (newAssignment.projectId && newAssignment.freelancerId && newAssignment.weeksAssigned) {
+      setProjectAssignments([...projectAssignments, { ...newAssignment }]);
+      setNewAssignment({ projectId: '', freelancerId: '', weeksAssigned: '' });
+    }
+  };
 
-  // Calculated values
-  const [calculatedValues, setCalculatedValues] = useState({
-    totalFreelancerCost: 0,
-    totalCost: 0,
-    grossProfit: 0,
-    margin: 0,
-    monthlyBreakdown: []
-  });
-
-  // Calculate all values when inputs change
-  useEffect(() => {
-    // Calculate freelancer costs
-    const totalFreelancerCost = freelancers.reduce((total, freelancer) => {
-      return total + (freelancer.hourlyRate * freelancer.hoursPerWeek * freelancer.weeks);
-    }, 0);
-
-    // Calculate overhead cost
-    const overheadCost = projectData.clientBudget * (projectData.overheadPercentage / 100);
-
-    // Calculate total cost
-    const totalCost = totalFreelancerCost + projectData.internalCosts + overheadCost;
-
-    // Calculate gross profit
-    const grossProfit = projectData.clientBudget - totalCost;
-
-    // Calculate margin percentage
-    const margin = (grossProfit / projectData.clientBudget) * 100;
-
-    // Create monthly breakdown
-    const durationMonths = projectData.expectedDuration;
-    const monthlyBreakdown = [];
+  // Calculate freelancer costs per project
+  const calculateProjectFreelancerCosts = () => {
+    return projects.map(project => {
+      const projectAssigns = projectAssignments.filter(pa => pa.projectId === project.id);
+      const cost = projectAssigns.reduce((acc, assignment) => {
+        const freelancer = freelancers.find(f => f.id === assignment.freelancerId);
+        if (freelancer) {
+          return acc + (freelancer.hourlyRate * freelancer.hoursPerWeek * assignment.weeksAssigned);
+        }
+        return acc;
+      }, 0);
+      
+      return {
+        ...project,
+        freelancerCost: cost,
+        profit: project.revenue - cost,
+        margin: ((project.revenue - cost) / project.revenue * 100).toFixed(1)
+      };
+    });
+  };
+  
+  // Get financial projections data
+  const getProjectionData = () => {
+    const projectedData = [];
+    const monthlyProjects = calculateProjectFreelancerCosts();
     
-    // Calculate average monthly cost distribution
-    const monthlyFreelancerCost = totalFreelancerCost / durationMonths;
-    const monthlyInternalCost = projectData.internalCosts / durationMonths;
-    const monthlyOverheadCost = overheadCost / durationMonths;
-    const monthlyRevenue = projectData.clientBudget / durationMonths;
-    
-    for (let i = 1; i <= durationMonths; i++) {
-      monthlyBreakdown.push({
+    for (let i = 1; i <= months; i++) {
+      // Simple projection: distribute project revenue and costs over months based on timeline
+      let monthRevenue = 0;
+      let monthCost = 0;
+      
+      monthlyProjects.forEach(project => {
+        // Distribute revenue and costs evenly over project timeline
+        if (i <= project.timeline) {
+          monthRevenue += project.revenue / project.timeline;
+          monthCost += project.freelancerCost / project.timeline;
+        }
+      });
+      
+      projectedData.push({
         month: `Month ${i}`,
-        freelancerCost: monthlyFreelancerCost,
-        internalCost: monthlyInternalCost,
-        overheadCost: monthlyOverheadCost,
-        revenue: monthlyRevenue,
-        profit: monthlyRevenue - monthlyFreelancerCost - monthlyInternalCost - monthlyOverheadCost
+        revenue: monthRevenue,
+        costs: monthCost + monthlyOverhead,
+        profit: monthRevenue - (monthCost + monthlyOverhead)
       });
     }
-
-    setCalculatedValues({
-      totalFreelancerCost,
-      totalCost,
-      grossProfit,
-      margin,
-      monthlyBreakdown
-    });
-  }, [freelancers, projectData]);
-
-  // Generate cost breakdown data for pie chart
-  const costBreakdownData = [
-    { name: 'Freelancers', value: calculatedValues.totalFreelancerCost },
-    { name: 'Internal Costs', value: projectData.internalCosts },
-    { name: 'Overhead', value: projectData.clientBudget * (projectData.overheadPercentage / 100) }
-  ];
-
-  // Generate freelancer breakdown data
-  const freelancerBreakdownData = freelancers.map(freelancer => ({
-    name: freelancer.name,
-    value: freelancer.hourlyRate * freelancer.hoursPerWeek * freelancer.weeks
-  }));
-
-  // Add a new freelancer
-  const addFreelancer = () => {
-    const newId = freelancers.length > 0 ? Math.max(...freelancers.map(f => f.id)) + 1 : 1;
-    setFreelancers([...freelancers, {
-      id: newId,
-      name: `Freelancer ${newId}`,
-      hourlyRate: 50,
-      hoursPerWeek: 20,
-      weeks: 4
-    }]);
+    
+    return projectedData;
   };
-
-  // Remove a freelancer
-  const removeFreelancer = (id) => {
-    setFreelancers(freelancers.filter(freelancer => freelancer.id !== id));
-  };
-
-  // Update freelancer data
-  const updateFreelancer = (id, field, value) => {
-    const updatedFreelancers = freelancers.map(freelancer => {
-      if (freelancer.id === id) {
-        return { ...freelancer, [field]: field === 'name' ? value : Number(value) };
-      }
-      return freelancer;
-    });
-    setFreelancers(updatedFreelancers);
-  };
-
-  // Update project data
-  const updateProjectData = (field, value) => {
-    setProjectData({
-      ...projectData,
-      [field]: field === 'projectName' ? value : Number(value)
-    });
-  };
-
-  // Render the appropriate chart based on chartType
-  const renderChart = () => {
-    switch (chartType) {
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={costBreakdownData}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              >
-                {costBreakdownData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        );
-      case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={calculatedValues.monthlyBreakdown}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-              <Legend />
-              <Bar dataKey="freelancerCost" name="Freelancer Costs" fill="#0088FE" />
-              <Bar dataKey="internalCost" name="Internal Costs" fill="#00C49F" />
-              <Bar dataKey="overheadCost" name="Overhead" fill="#FFBB28" />
-              <Bar dataKey="profit" name="Profit" fill="#8884d8" />
-            </BarChart>
-          </ResponsiveContainer>
-        );
-      case 'line':
-        return (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={calculatedValues.monthlyBreakdown}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
-              <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
-              <Legend />
-              <Line type="monotone" dataKey="revenue" name="Revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
-              <Line type="monotone" dataKey="profit" name="Profit" stroke="#82ca9d" />
-            </LineChart>
-          </ResponsiveContainer>
-        );
-      default:
-        return null;
-    }
-  };
+  
+  const projectsWithCosts = calculateProjectFreelancerCosts();
+  const projectionData = getProjectionData();
+  
+  // Calculate totals
+  const totalRevenue = projectsWithCosts.reduce((acc, p) => acc + p.revenue, 0);
+  const totalCosts = projectsWithCosts.reduce((acc, p) => acc + p.freelancerCost, 0) + (monthlyOverhead * months);
+  const totalProfit = totalRevenue - totalCosts;
+  const overallMargin = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : 0;
 
   return (
-    <div className="bg-gray-50 p-6 rounded-lg shadow-lg max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6 text-blue-800">{projectData.projectName} - Financial Forecast</h1>
+    <div className="p-4 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">FP&A Project and Freelancer Cost Model</h1>
       
-      {/* Project Information Section */}
-      <div className="bg-white p-4 rounded-md shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Project Information</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label>
-            <input 
-              type="text" 
-              className="w-full border border-gray-300 rounded-md p-2"
-              value={projectData.projectName}
-              onChange={(e) => updateProjectData('projectName', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Client Budget ($)</label>
-            <input 
-              type="number" 
-              className="w-full border border-gray-300 rounded-md p-2"
-              value={projectData.clientBudget}
-              onChange={(e) => updateProjectData('clientBudget', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Duration (months)</label>
-            <input 
-              type="number" 
-              className="w-full border border-gray-300 rounded-md p-2"
-              value={projectData.expectedDuration}
-              onChange={(e) => updateProjectData('expectedDuration', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Internal Costs ($)</label>
-            <input 
-              type="number" 
-              className="w-full border border-gray-300 rounded-md p-2"
-              value={projectData.internalCosts}
-              onChange={(e) => updateProjectData('internalCosts', e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Overhead Percentage (%)</label>
-            <input 
-              type="number" 
-              className="w-full border border-gray-300 rounded-md p-2"
-              value={projectData.overheadPercentage}
-              onChange={(e) => updateProjectData('overheadPercentage', e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-      
-      {/* Freelancer Section */}
-      <div className="bg-white p-4 rounded-md shadow mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Freelancer Costs</h2>
-          <button 
-            onClick={addFreelancer}
-            className="bg-blue-600 text-white px-3 py-1 rounded-md flex items-center"
-          >
-            <Plus size={16} className="mr-1" /> Add Freelancer
-          </button>
-        </div>
-        
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Name</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Hourly Rate ($)</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Hours per Week</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Weeks</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Total Cost</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {freelancers.map(freelancer => (
-                <tr key={freelancer.id}>
-                  <td className="px-4 py-2 border-b border-gray-200">
-                    <input 
-                      type="text" 
-                      className="w-full border border-gray-300 rounded-md p-1"
-                      value={freelancer.name}
-                      onChange={(e) => updateFreelancer(freelancer.id, 'name', e.target.value)}
-                    />
-                  </td>
-                  <td className="px-4 py-2 border-b border-gray-200">
-                    <input 
-                      type="number" 
-                      className="w-full border border-gray-300 rounded-md p-1"
-                      value={freelancer.hourlyRate}
-                      onChange={(e) => updateFreelancer(freelancer.id, 'hourlyRate', e.target.value)}
-                    />
-                  </td>
-                  <td className="px-4 py-2 border-b border-gray-200">
-                    <input 
-                      type="number" 
-                      className="w-full border border-gray-300 rounded-md p-1"
-                      value={freelancer.hoursPerWeek}
-                      onChange={(e) => updateFreelancer(freelancer.id, 'hoursPerWeek', e.target.value)}
-                    />
-                  </td>
-                  <td className="px-4 py-2 border-b border-gray-200">
-                    <input 
-                      type="number" 
-                      className="w-full border border-gray-300 rounded-md p-1"
-                      value={freelancer.weeks}
-                      onChange={(e) => updateFreelancer(freelancer.id, 'weeks', e.target.value)}
-                    />
-                  </td>
-                  <td className="px-4 py-2 border-b border-gray-200 font-medium">
-                    ${(freelancer.hourlyRate * freelancer.hoursPerWeek * freelancer.weeks).toFixed(2)}
-                  </td>
-                  <td className="px-4 py-2 border-b border-gray-200">
-                    <button 
-                      onClick={() => removeFreelancer(freelancer.id)}
-                      className="bg-red-500 text-white px-2 py-1 rounded-md flex items-center"
-                    >
-                      <Minus size={16} className="mr-1" /> Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      
-      {/* Results Section */}
-      <div className="bg-white p-4 rounded-md shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Financial Summary</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-blue-800">Total Revenue</h3>
-            <p className="text-2xl font-bold">${projectData.clientBudget.toFixed(2)}</p>
-          </div>
-          <div className="bg-amber-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-amber-800">Total Costs</h3>
-            <p className="text-2xl font-bold">${calculatedValues.totalCost.toFixed(2)}</p>
-            <p className="text-sm text-gray-600">Freelancers: ${calculatedValues.totalFreelancerCost.toFixed(2)}</p>
-          </div>
-          <div className="bg-green-50 p-4 rounded-lg">
-            <h3 className="text-lg font-medium text-green-800">Gross Profit</h3>
-            <p className="text-2xl font-bold">${calculatedValues.grossProfit.toFixed(2)}</p>
-          </div>
-          <div className={`p-4 rounded-lg ${calculatedValues.margin >= 20 ? 'bg-green-50' : calculatedValues.margin >= 10 ? 'bg-amber-50' : 'bg-red-50'}`}>
-            <h3 className="text-lg font-medium text-gray-800">Profit Margin</h3>
-            <p className={`text-2xl font-bold ${calculatedValues.margin >= 20 ? 'text-green-600' : calculatedValues.margin >= 10 ? 'text-amber-600' : 'text-red-600'}`}>
-              {calculatedValues.margin.toFixed(2)}%
-            </p>
-          </div>
-        </div>
-      </div>
-      
-      {/* Chart Section */}
-      <div className="bg-white p-4 rounded-md shadow mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">Visualizations</h2>
-          <div className="flex space-x-2">
-            <button 
-              onClick={() => setChartType('pie')}
-              className={`px-3 py-1 rounded-md flex items-center ${chartType === 'pie' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-            >
-              Cost Breakdown
-            </button>
-            <button 
-              onClick={() => setChartType('bar')}
-              className={`px-3 py-1 rounded-md flex items-center ${chartType === 'bar' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-            >
-              Monthly Costs
-            </button>
-            <button 
-              onClick={() => setChartType('line')}
-              className={`px-3 py-1 rounded-md flex items-center ${chartType === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}
-            >
-              Revenue & Profit
-            </button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div className="bg-blue-50 p-4 rounded-lg">
+          <h2 className="text-lg font-semibold mb-2">Quick Stats</h2>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-600">Total Revenue</p>
+              <p className="text-xl font-bold">${totalRevenue.toLocaleString()}</p>
+            </div>
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-600">Total Costs</p>
+              <p className="text-xl font-bold">${totalCosts.toLocaleString()}</p>
+            </div>
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-600">Total Profit</p>
+              <p className="text-xl font-bold">${totalProfit.toLocaleString()}</p>
+            </div>
+            <div className="bg-white p-3 rounded shadow">
+              <p className="text-sm text-gray-600">Overall Margin</p>
+              <p className="text-xl font-bold">{overallMargin}%</p>
+            </div>
           </div>
         </div>
         
-        {renderChart()}
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <h2 className="text-lg font-semibold mb-2">Settings</h2>
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="block text-sm text-gray-600 mb-1">Monthly Overhead</label>
+              <input 
+                type="number"
+                className="w-full p-2 border rounded"
+                value={monthlyOverhead}
+                onChange={(e) => setMonthlyOverhead(Number(e.target.value))}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm text-gray-600 mb-1">Forecast Months</label>
+              <input 
+                type="number"
+                className="w-full p-2 border rounded"
+                value={months}
+                onChange={(e) => setMonths(Number(e.target.value))}
+              />
+            </div>
+          </div>
+        </div>
       </div>
-      
-      {/* Monthly Breakdown Table */}
-      <div className="bg-white p-4 rounded-md shadow mb-6">
-        <h2 className="text-xl font-semibold mb-4 text-gray-800">Monthly Breakdown</h2>
-        <div className="overflow-x-auto">
-          <table className="min-w-full bg-white">
-            <thead>
-              <tr>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Month</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Revenue</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Freelancer Costs</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Internal Costs</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Overhead</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Profit</th>
-                <th className="text-left px-4 py-2 border-b-2 border-gray-200">Margin</th>
-              </tr>
-            </thead>
-            <tbody>
-              {calculatedValues.monthlyBreakdown.map((month, index) => (
-                <tr key={index}>
-                  <td className="px-4 py-2 border-b border-gray-200">{month.month}</td>
-                  <td className="px-4 py-2 border-b border-gray-200">${month.revenue.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b border-gray-200">${month.freelancerCost.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b border-gray-200">${month.internalCost.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b border-gray-200">${month.overheadCost.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b border-gray-200 font-medium">${month.profit.toFixed(2)}</td>
-                  <td className={`px-4 py-2 border-b border-gray-200 font-medium ${
-                    (month.profit / month.revenue) * 100 >= 20 ? 'text-green-600' : 
-                    (month.profit / month.revenue) * 100 >= 10 ? 'text-amber-600' : 
-                    'text-red-600'
-                  }`}>
-                    {((month.profit / month.revenue) * 100).toFixed(2)}%
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+
+      <div className="mb-8">
+        <h2 className="text-xl font-semibold mb-4">Financial Projections</h2>
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart
+              data={projectionData}
+              margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip formatter={(value) => `$${value.toFixed(2)}`} />
+              <Legend />
+              <Line type="monotone" dataKey="revenue" stroke="#8884d8" name="Revenue" />
+              <Line type="monotone" dataKey="costs" stroke="#ff7300" name="Costs" />
+              <Line type="monotone" dataKey="profit" stroke="#82ca9d" name="Profit" />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
       </div>
       
-      {/* Export/Save Button */}
-      <div className="flex justify-end">
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-md flex items-center">
-          <Save size={18} className="mr-2" /> Save Forecast
-        </button>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Projects</h2>
+          <div className="bg-white p-4 rounded-lg shadow mb-4">
+            <h3 className="text-lg font-medium mb-2">Add New Project</h3>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <input
+                placeholder="Project Name"
+                className="p-2 border rounded"
+                name="name"
+                value={newProject.name}
+                onChange={handleProjectChange}
+              />
+              <input
+                placeholder="Revenue ($)"
+                type="number"
+                className="p-2 border rounded"
+                name="revenue"
+                value={newProject.revenue}
+                onChange={handleProjectChange}
+              />
+              <input
+                placeholder="Timeline (months)"
+                type="number"
+                className="p-2 border rounded"
+                name="timeline"
+                value={newProject.timeline}
+                onChange={handleProjectChange}
+              />
+            </div>
+            <button 
+              className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+              onClick={addProject}
+            >
+              Add Project
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full bg-white shadow rounded-lg">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-3 text-left">Project</th>
+                  <th className="p-3 text-right">Revenue</th>
+                  <th className="p-3 text-right">Freelancer Cost</th>
+                  <th className="p-3 text-right">Profit</th>
+                  <th className="p-3 text-right">Margin</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectsWithCosts.map(project => (
+                  <tr key={project.id} className="border-t">
+                    <td className="p-3">{project.name}</td>
+                    <td className="p-3 text-right">${project.revenue.toLocaleString()}</td>
+                    <td className="p-3 text-right">${project.freelancerCost.toLocaleString()}</td>
+                    <td className="p-3 text-right">${project.profit.toLocaleString()}</td>
+                    <td className="p-3 text-right">{project.margin}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="mt-6">
+            <h3 className="font-medium mb-3">Project Margins</h3>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={projectsWithCosts}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="revenue" fill="#8884d8" name="Revenue" />
+                  <Bar dataKey="freelancerCost" fill="#ff7300" name="Cost" />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+        
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Freelancers</h2>
+          <div className="bg-white p-4 rounded-lg shadow mb-4">
+            <h3 className="text-lg font-medium mb-2">Add New Freelancer</h3>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <input
+                placeholder="Freelancer Name"
+                className="p-2 border rounded"
+                name="name"
+                value={newFreelancer.name}
+                onChange={handleFreelancerChange}
+              />
+              <input
+                placeholder="Hourly Rate ($)"
+                type="number"
+                className="p-2 border rounded"
+                name="hourlyRate"
+                value={newFreelancer.hourlyRate}
+                onChange={handleFreelancerChange}
+              />
+              <input
+                placeholder="Hours Per Week"
+                type="number"
+                className="p-2 border rounded"
+                name="hoursPerWeek"
+                value={newFreelancer.hoursPerWeek}
+                onChange={handleFreelancerChange}
+              />
+            </div>
+            <button 
+              className="w-full bg-green-600 text-white p-2 rounded hover:bg-green-700"
+              onClick={addFreelancer}
+            >
+              Add Freelancer
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto mb-6">
+            <table className="w-full bg-white shadow rounded-lg">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-3 text-left">Name</th>
+                  <th className="p-3 text-right">Hourly Rate</th>
+                  <th className="p-3 text-right">Hours/Week</th>
+                  <th className="p-3 text-right">Weekly Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {freelancers.map(freelancer => (
+                  <tr key={freelancer.id} className="border-t">
+                    <td className="p-3">{freelancer.name}</td>
+                    <td className="p-3 text-right">${freelancer.hourlyRate}</td>
+                    <td className="p-3 text-right">{freelancer.hoursPerWeek}</td>
+                    <td className="p-3 text-right">${(freelancer.hourlyRate * freelancer.hoursPerWeek).toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <h2 className="text-xl font-semibold mb-4">Project Assignments</h2>
+          <div className="bg-white p-4 rounded-lg shadow mb-4">
+            <h3 className="text-lg font-medium mb-2">Assign Freelancer to Project</h3>
+            <div className="grid grid-cols-3 gap-2 mb-2">
+              <select 
+                className="p-2 border rounded"
+                name="projectId"
+                value={newAssignment.projectId}
+                onChange={handleAssignmentChange}
+              >
+                <option value="">Select Project</option>
+                {projects.map(project => (
+                  <option key={project.id} value={project.id}>{project.name}</option>
+                ))}
+              </select>
+              <select
+                className="p-2 border rounded"
+                name="freelancerId"
+                value={newAssignment.freelancerId}
+                onChange={handleAssignmentChange}
+              >
+                <option value="">Select Freelancer</option>
+                {freelancers.map(freelancer => (
+                  <option key={freelancer.id} value={freelancer.id}>{freelancer.name}</option>
+                ))}
+              </select>
+              <input
+                placeholder="Weeks Assigned"
+                type="number"
+                className="p-2 border rounded"
+                name="weeksAssigned"
+                value={newAssignment.weeksAssigned}
+                onChange={handleAssignmentChange}
+              />
+            </div>
+            <button 
+              className="w-full bg-purple-600 text-white p-2 rounded hover:bg-purple-700"
+              onClick={addAssignment}
+            >
+              Assign to Project
+            </button>
+          </div>
+          
+          <div className="overflow-x-auto">
+            <table className="w-full bg-white shadow rounded-lg">
+              <thead className="bg-gray-100">
+                <tr>
+                  <th className="p-3 text-left">Project</th>
+                  <th className="p-3 text-left">Freelancer</th>
+                  <th className="p-3 text-right">Weeks</th>
+                  <th className="p-3 text-right">Total Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {projectAssignments.map((assignment, idx) => {
+                  const project = projects.find(p => p.id === assignment.projectId);
+                  const freelancer = freelancers.find(f => f.id === assignment.freelancerId);
+                  const cost = freelancer 
+                    ? freelancer.hourlyRate * freelancer.hoursPerWeek * assignment.weeksAssigned 
+                    : 0;
+                    
+                  return (
+                    <tr key={idx} className="border-t">
+                      <td className="p-3">{project ? project.name : 'Unknown'}</td>
+                      <td className="p-3">{freelancer ? freelancer.name : 'Unknown'}</td>
+                      <td className="p-3 text-right">{assignment.weeksAssigned}</td>
+                      <td className="p-3 text-right">${cost.toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );
